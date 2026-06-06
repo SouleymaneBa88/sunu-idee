@@ -1,19 +1,21 @@
-import { createClient} from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 import { genericCategorie } from "../IAGENERE/ia.js";
- // Ajouter une idee
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabaseClient = createClient(
+    supabaseUrl,
+    supabaseKey
+)
+
+// Ajouter une idee
 export async function addIdee(data) {
     try {
-        let categorieOllama;
-
-        try {
-            categorieOllama = await genericCategorie(
-                data.titre,
-                data.description
-            );
-        } catch (err) {
-            console.error("Erreur classification IA :", err);
-            categorieOllama = "campus"; // catégorie par défaut
-        }
+        const categorieOllama = await genericCategorie(
+            data.titre,
+            data.description
+        );
 
         const { data: insertedData, error } = await supabaseClient
             .from("messages")
@@ -33,12 +35,13 @@ export async function addIdee(data) {
         return insertedData;
 
     } catch (error) {
-        console.error("Erreur addIdee :", error);
-        throw error;
+        console.error("Erreur addIdee:", error);
+        return null;
     }
 }
-export async function loadMessages() {
 
+// Charger messages
+export async function loadMessages() {
     const { data, error } = await supabaseClient
         .from("messages")
         .select("*")
@@ -52,29 +55,30 @@ export async function loadMessages() {
     return data;
 }
 
-export  async function update(id,titre,categorie,description){
-     const {data,error} = await supabaseClient
-    .from("messages")
-    .update({
-        titre,
-        categorie,
-        description
-    })
-    .eq("id", id);
+// Update
+export async function update(id, titre, categorie, description) {
+    const { data, error } = await supabaseClient
+        .from("messages")
+        .update({
+            titre,
+            categorie,
+            description
+        })
+        .eq("id", id)
+        .select();
 
-    if(error){
-        console.error("Erreur udpate", error)
-        return
+    if (error) {
+        console.error("Erreur update", error);
+        return null;
     }
+
+    return data;
 }
 
-
-export async function confirmDelete(id){
-
-    // console.log("deleteId:", deleteId);
-
-    if(!id){
-        console.error("deleteId null → delete annulé");
+// Delete
+export async function confirmDelete(id) {
+    if (!id) {
+        console.error("delete annulé: id manquant");
         return;
     }
 
@@ -83,27 +87,17 @@ export async function confirmDelete(id){
         .delete()
         .eq("id", id);
 
-    if(error){
+    if (error) {
         console.error(error);
         return;
     }
 
-    id = null;
     document.getElementById("dialog").close();
-
-    // await afficherCartes();
 }
-const supabaseUrl= import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-export const supabaseClient = createClient(
-    supabaseUrl,
-    supabaseKey
-)
 
-
+// Filtre catégorie
 export async function getMessagesByCategorie(categorie) {
     try {
-
         let query = supabaseClient
             .from("messages")
             .select("*")
@@ -115,9 +109,7 @@ export async function getMessagesByCategorie(categorie) {
 
         const { data, error } = await query;
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
         return data;
 
@@ -125,24 +117,4 @@ export async function getMessagesByCategorie(categorie) {
         console.error("Erreur Supabase filtre :", error);
         return [];
     }
-}
-
-export function realtimeMessages(callback) {
-    const channel = supabaseClient
-        .channel("messages-channel")
-        .on(
-            "postgres_changes",
-            {
-                event: "*",
-                schema: "public",
-                table: "messages"
-            },
-            (payload) => {
-                console.log("Realtime :", payload);
-                callback(payload);
-            }
-        )
-        .subscribe();
-
-    return channel;
 }

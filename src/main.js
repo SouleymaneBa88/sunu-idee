@@ -1,6 +1,19 @@
-import{ addIdee, loadMessages, confirmDelete as deleteIdea,update, supabaseClient,getMessagesByCategorie,} from './DB_supabase/supabase.js'
-import {validationDescription,validationTitre} from "./validationForm/validation.js"
-// Recuperer les données du formulaire
+import {
+    addIdee,
+    loadMessages,
+    confirmDelete as deleteIdea,
+    update,
+    supabaseClient,
+    getMessagesByCategorie
+} from './DB_supabase/supabase.js';
+
+import {
+    validationDescription,
+    validationTitre
+} from "./validationForm/validation.js";
+
+
+//  RECUP FORM
 function getForm(form) {
     const formData = new FormData(form);
     return {
@@ -10,15 +23,20 @@ function getForm(form) {
 }
 
 
-// Afficher les cartes
-async function afficherCartes(message =null) {
-    if(!message){
-         message = await loadMessages();
-
+//  AFFICHER CARTES
+async function afficherCartes(message = null) {
+    if (!message) {
+        message = await loadMessages();
     }
 
     const cards = document.getElementById("card");
     const total = document.getElementById("Total_idee");
+
+    if (!message || message.length === 0) {
+        cards.innerHTML = "<p class='text-gray-400'>Aucune idée trouvée  ?</p>";
+        total.textContent = 0;
+        return;
+    }
 
     cards.innerHTML = message.map((idee) => `
         <div class="bg-[#111a2e] border border-[#26324a] p-4 rounded-xl">
@@ -39,13 +57,15 @@ async function afficherCartes(message =null) {
                 ${idee.created_at ? new Date(idee.created_at).toLocaleDateString() : ""}
             </p>
 
-            <button class="rounded-md px-2.5 py-1.5 text-sm font-semibold text-white inset-ring inset-ring-white/5 hover:bg-white/20"
-             onclick="editIdee('${idee.id}')">
-             <i class="fa-solid fa-pen text-green"></i> </button> 
-             <button commandfor="dialog" class="rounded-md px-2.5 py-1.5 text-sm font-semibold text-white inset-ring inset-ring-white/5 hover:bg-white/20" 
-             onclick="openDeleteModal('${idee.id}')">
-              <i class="fa-solid fa-trash text-red-500"></i> 
-              </button>
+            <button class="rounded-md px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-white/20"
+                onclick="editIdee('${idee.id}')">
+                <i class="fa-solid fa-pen text-green"></i>
+            </button>
+
+            <button class="rounded-md px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-white/20"
+                onclick="openDeleteModal('${idee.id}')">
+                <i class="fa-solid fa-trash text-red-500"></i>
+            </button>
 
         </div>
     `).join("");
@@ -53,69 +73,16 @@ async function afficherCartes(message =null) {
     total.textContent = message.length;
 }
 
+
+//  INIT
 afficherCartes();
-filtreCategorie();
 
-// Formulaire
-const btn = document.getElementById("btn")
-document.getElementById("form")
-.addEventListener("submit",async (e) => {
 
-    e.preventDefault();
-    const titreOk = validationTitre()
-    const descriptionOk = validationDescription()
-
-    // empeche la validation du formulaire
-    if(!titreOk || !descriptionOk){
-        btn.textContent="verifie d'abord ton erreur"
-        btn.classList.add(
-        "bg-red-500",
-        );
-        return
-    }
-
-    const form = e.target;
-    const data = getForm(form);
-
-    btn.disabled= true
-    btn.textContent="Analyse de l'idee par l'IA..."
-    btn.classList.remove(
-        "bg-red-500",
-        );
-    btn.classList.add(
-    "bg-gray-500",
-    "cursor-not-allowed"
-);
-    
-    try{
-    await addIdee(data)
-    await afficherCartes();
-    form.reset();
-    }
-    catch (error){
-        console.error(error);
-    }
-    finally{
-        btn.disabled= false
-        btn.textContent="Ajouter une idee"
-        btn.classList.remove(
-        "bg-red-500",
-        ); 
-        btn.classList.remove(
-    "bg-gray-500",
-    "cursor-not-allowed"
-);
-        btn.classList.add("bg-green")
-
-    }
-
-});
+//  FILTRE CATEGORIE
 function filtreCategorie() {
-
     const boutons = document.querySelectorAll(".btn-filtre");
 
     boutons.forEach((btn) => {
-
         btn.addEventListener("click", async () => {
 
             const categorie = btn.dataset.categorie;
@@ -129,89 +96,136 @@ function filtreCategorie() {
             btn.classList.remove("bg-[#111a2e]", "border", "border-[#26324a]");
 
             const data = await getMessagesByCategorie(categorie);
-
             afficherCartes(data);
         });
-
     });
 }
- afficherCartes();
 
-// delete
-let deleteId = null;
+filtreCategorie();
 
-function openDeleteModal(id){
 
-    console.log("ID reçu:", id);
+//  AJOUT IDEE
+const btn = document.getElementById("btn");
 
-    if(!id){
-        console.error("ID invalide");
+document.getElementById("form")
+.addEventListener("submit", async (e) => {
+
+    e.preventDefault();
+
+    const titreOk = validationTitre();
+    const descriptionOk = validationDescription();
+
+    if (!titreOk || !descriptionOk) {
+        btn.textContent = "Corrige les erreurs";
+        btn.classList.add("bg-red-500");
         return;
     }
+
+    const form = e.target;
+    const data = getForm(form);
+
+    btn.disabled = true;
+    btn.textContent = "Analyse IA...";
+    btn.classList.add("bg-gray-500", "cursor-not-allowed");
+
+    try {
+        await addIdee(data);
+        await afficherCartes();
+        form.reset();
+    } catch (error) {
+        console.error(error);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Ajouter une idee";
+        btn.classList.remove("bg-gray-500", "cursor-not-allowed", "bg-red-500");
+        btn.classList.add("bg-green");
+    }
+});
+
+
+//  DELETE MODAL
+let deleteId = null;
+
+function openDeleteModal(id) {
+    if (!id) return;
 
     deleteId = id;
     document.getElementById("dialog").showModal();
 }
+
 window.openDeleteModal = openDeleteModal;
-
-//update
-// ouvrir modal modification
-async function editIdee(id){
-    const message = await loadMessages()
-    if(!Array.isArray(message)){
-        console.error("message n'est pas un tableau ", message)
-        return
-    }
-    const idee = message.find(
-        item => String(item.id) === String(id)
-    );
-
-    if(!idee) return;
-
-    document.getElementById("editId").value =idee.id;
-
-    document.getElementById("editTitre").value =idee.titre;
-
-    document.getElementById("editCategorie").value =idee.categorie;
-
-    document.getElementById("editDescription").value =idee.description;
-
-    document.getElementById("editDialog").showModal();
-    
-}
-window.editIdee = editIdee;
 
 window.confirmDelete = async () => {
     await deleteIdea(deleteId);
     await afficherCartes();
 };
 
-// fermer modal
-function closeEditModal(){
 
-    document.getElementById("editDialog")
-        .close();
+//  EDIT
+async function editIdee(id) {
+    const message = await loadMessages();
+
+    const idee = message.find(
+        item => String(item.id) === String(id)
+    );
+
+    if (!idee) return;
+
+    document.getElementById("editId").value = idee.id;
+    document.getElementById("editTitre").value = idee.titre;
+    document.getElementById("editCategorie").value = idee.categorie;
+    document.getElementById("editDescription").value = idee.description;
+
+    document.getElementById("editDialog").showModal();
+}
+
+window.editIdee = editIdee;
+
+
+// fermer modal edit
+function closeEditModal() {
+    document.getElementById("editDialog").close();
 }
 
 window.closeEditModal = closeEditModal;
 
-// sauvegarder modification
+
+//  SAVE UPDATE
 document.getElementById("editForm")
-.addEventListener("submit",async (e)=>{
+.addEventListener("submit", async (e) => {
 
     e.preventDefault();
-    const message =await loadMessages()
 
-    const id = (document.getElementById("editId").value);
+    const id = document.getElementById("editId").value;
+    const titre = document.getElementById("editTitre").value;
+    const categorie = document.getElementById("editCategorie").value;
+    const description = document.getElementById("editDescription").value;
 
-    const titre =document.getElementById("editTitre").value;
-
-    const categorie =document.getElementById("editCategorie").value;
-
-    const description =document.getElementById("editDescription").value;
-    await update(id,titre,categorie,description)
-    await loadMessages()
-    await afficherCartes()
-    closeEditModal()
-
+    await update(id, titre, categorie, description);
+    await afficherCartes();
+    closeEditModal();
 });
+
+function initRealtime() {
+
+    supabaseClient
+        .channel('messages-channel')
+        .on(
+            'postgres_changes',
+            {
+                event: '*',
+                schema: 'public',
+                table: 'messages'
+            },
+            async (payload) => {
+                console.log(" Changement détecté :", payload);
+
+                // refresh automatique UI
+                const data = await loadMessages();
+                afficherCartes(data);
+            }
+        )
+        .subscribe();
+}
+
+initRealtime();
