@@ -1,4 +1,4 @@
-import{ addIdee, loadMessages, confirmDelete as deleteIdea,update, supabaseClient,getMessagesByCategorie} from './DB_supabase/supabase.js'
+import{ addIdee, loadMessages, confirmDelete as deleteIdea,update, supabaseClient,getMessagesByCategorie,} from './DB_supabase/supabase.js'
 import {validationDescription,validationTitre} from "./validationForm/validation.js"
 // Recuperer les données du formulaire
 function getForm(form) {

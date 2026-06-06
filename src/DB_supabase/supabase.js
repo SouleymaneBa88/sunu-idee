@@ -2,25 +2,41 @@ import { createClient} from "@supabase/supabase-js"
 import { genericCategorie } from "../IAGENERE/ia.js";
  // Ajouter une idee
 export async function addIdee(data) {
-    const categorieOllama = await genericCategorie(data.titre,data.description);
-    const {data: insertedData,error}= await supabaseClient
-        .from("messages")
-        .insert([
-            {
-                categorie: categorieOllama,
+    try {
+        let categorieOllama;
+
+        try {
+            categorieOllama = await genericCategorie(
+                data.titre,
+                data.description
+            );
+        } catch (err) {
+            console.error("Erreur classification IA :", err);
+            categorieOllama = "campus"; // catégorie par défaut
+        }
+
+        const { data: insertedData, error } = await supabaseClient
+            .from("messages")
+            .insert([
+                {
+                    categorie: categorieOllama,
                     titre: data.titre,
                     description: data.description
-            }
-        ])
-        .select()
+                }
+            ])
+            .select();
 
-        if(error){
+        if (error) {
             throw error;
-
-            return insertedData
         }
-}
 
+        return insertedData;
+
+    } catch (error) {
+        console.error("Erreur addIdee :", error);
+        throw error;
+    }
+}
 export async function loadMessages() {
 
     const { data, error } = await supabaseClient
@@ -109,4 +125,24 @@ export async function getMessagesByCategorie(categorie) {
         console.error("Erreur Supabase filtre :", error);
         return [];
     }
+}
+
+export function realtimeMessages(callback) {
+    const channel = supabaseClient
+        .channel("messages-channel")
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "messages"
+            },
+            (payload) => {
+                console.log("Realtime :", payload);
+                callback(payload);
+            }
+        )
+        .subscribe();
+
+    return channel;
 }
